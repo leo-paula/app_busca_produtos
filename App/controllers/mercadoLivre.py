@@ -4,52 +4,68 @@ from selenium.webdriver.common.by import By
 import time
 
 web = webdriver.Chrome()
-baseUrl = 'https://lista.mercadolivre.com.br/'
+base_url = 'https://lista.mercadolivre.com.br/'
+
+def safe_find(xpath):
+    try:
+        return web.find_element(By.XPATH, xpath).text
+    except Exception:
+        return None
+    
+def acess_base_site(base_url, query):
+    complete = base_url + query
+    web.get(complete)
+
+def trim_links(brute_links):
+    results = []
+    for link in brute_links:
+        src = link.get_attribute('href')
+        if src:
+            results.append(src)
+    return results
 
 def getProductMercadoLivre(query):
     try:
-        completeUrl = baseUrl + query
-        web.get(completeUrl)
+        acess_base_site(base_url, query)
         time.sleep(1)
         returnedResults = []
-        product_linksSaved = []
-        product_link = web.find_element(By.XPATH, '//ol/li//h3/a')
-        finalProduct = product_link.get_attribute('href')
+        brute_links = web.find_elements(By.XPATH, '//ol/li//h3/a')
+        trimmed_links = trim_links(brute_links)
 
-        web.get(finalProduct)
-        time.sleep(0.5)
         try:
-            title = web.find_element(By.XPATH, '//h1[@class="ui-pdp-title"]').text
-            shipment = web.find_element(By.XPATH, '//p[@class="ui-pdp-color--BLACK ui-pdp-family--REGULAR ui-pdp-media__title"]').text
-            price = web.find_element(By.XPATH, '//span[@class="andes-money-amount ui-pdp-price__part andes-money-amount--cents-superscript andes-money-amount--compact"]').text.replace('\n', '')            
-            seller = web.find_element(By.XPATH, '//div[@class="ui-pdp-seller__header__title"]').text
-            times = web.find_element(By.XPATH, '//p[@class="ui-pdp-color--BLACK ui-pdp-size--MEDIUM ui-pdp-family--REGULAR"]').text
-            description = web.find_element(By.XPATH, '//p[@class="ui-pdp-description__content"]').text
-            rating = web.find_element(By.XPATH, '//span[@class="ui-pdp-review__rating"]').text
-            
+            for link in trimmed_links:
 
-            images = []
-            imagesBrute = web.find_elements(By.XPATH, '//img[@class="ui-pdp-image"]')
-            for image in imagesBrute:
-                srcImage = image.get_attribute('src')
-                if srcImage:
-                    images.append(srcImage)
+                web.get(link)
+                title = safe_find('//h1[@class="ui-pdp-title"]')
+                shipment = safe_find('//p[@class="ui-pdp-color--BLACK ui-pdp-family--REGULAR ui-pdp-media__title"]')
+                price = safe_find('//span[@class="andes-money-amount ui-pdp-price__part andes-money-amount--cents-superscript andes-money-amount--compact"]')
+                seller = safe_find('//div[@class="ui-pdp-seller__header__title"]')
+                times = safe_find('//p[@class="ui-pdp-color--BLACK ui-pdp-size--MEDIUM ui-pdp-family--REGULAR"]')
+                description = safe_find('//p[@class="ui-pdp-description__content"]')
+                rating = safe_find('//span[@class="ui-pdp-review__rating"]')
 
-            product = {'title': title,
-                       'shipment': shipment,
-                       'price': price,
-                       'images': images,
-                       'seller': seller,
-                       'times': times,
-                       'description': description,
-                       'rating': rating}
-            
-        
-            returnedResults.append(product)
+                brute_product = {
+                    'title': title,
+                    'shipment': shipment,
+                    'price': price,
+                    'seller': seller,
+                    'times': times,
+                    'description': description,
+                    'rating': rating
+                }
+
+                product = {}
+
+                for fieldname, item in brute_product.items():
+                    if item:
+                        product[fieldname] = item
+
+                returnedResults.append(product)
             return returnedResults
-            
-        except Exception:
-            returnedResults.append(None)
-
+        except Exception as e:
+                print(f"Error while scraping product: {e}")
+                returnedResults.append(None)
+                return returnedResults
     except Exception as e:
+        print(f"Error in getProductMercadoLivre: {e}")
         raise HTTPException(status_code=400, detail=f'Não foi possível realizar a ação: {e}')
