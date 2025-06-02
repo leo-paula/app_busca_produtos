@@ -3,16 +3,15 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 import time
 
-web = webdriver.Chrome()
 base_url = 'https://lista.mercadolivre.com.br/'
 
-def safe_find(xpath):
+def safe_find(web, xpath):
     try:
         return web.find_element(By.XPATH, xpath).text
     except Exception:
         return None
     
-def acess_base_site(base_url, query):
+def acess_base_site(web, base_url, query):
     complete = base_url + query
     web.get(complete)
 
@@ -25,8 +24,10 @@ def trim_links(brute_links):
     return results
 
 def getProductMercadoLivre(query):
+    web = None
     try:
-        acess_base_site(base_url, query)
+        web = webdriver.Chrome()
+        acess_base_site(web, base_url, query)
         time.sleep(1)
         returnedResults = []
         brute_links = web.find_elements(By.XPATH, '//ol/li//h3/a')
@@ -34,15 +35,14 @@ def getProductMercadoLivre(query):
 
         try:
             for link in trimmed_links:
-
                 web.get(link)
-                title = safe_find('//h1[@class="ui-pdp-title"]')
-                shipment = safe_find('//p[@class="ui-pdp-color--BLACK ui-pdp-family--REGULAR ui-pdp-media__title"]')
-                price = safe_find('//span[@class="andes-money-amount ui-pdp-price__part andes-money-amount--cents-superscript andes-money-amount--compact"]')
-                seller = safe_find('//div[@class="ui-pdp-seller__header__title"]')
-                times = safe_find('//p[@class="ui-pdp-color--BLACK ui-pdp-size--MEDIUM ui-pdp-family--REGULAR"]')
-                description = safe_find('//p[@class="ui-pdp-description__content"]')
-                rating = safe_find('//span[@class="ui-pdp-review__rating"]')
+                title = safe_find(web, '//h1[@class="ui-pdp-title"]')
+                shipment = safe_find(web, '//p[@class="ui-pdp-color--BLACK ui-pdp-family--REGULAR ui-pdp-media__title"]')
+                price = safe_find(web, '//span[@class="andes-money-amount ui-pdp-price__part andes-money-amount--cents-superscript andes-money-amount--compact"]')
+                seller = safe_find(web, '//div[@class="ui-pdp-seller__header__title"]')
+                times = safe_find(web, '//p[@class="ui-pdp-color--BLACK ui-pdp-size--MEDIUM ui-pdp-family--REGULAR"]')
+                description = safe_find(web, '//p[@class="ui-pdp-description__content"]')
+                rating = safe_find(web, '//span[@class="ui-pdp-review__rating"]')
 
                 brute_product = {
                     'title': title,
@@ -69,3 +69,9 @@ def getProductMercadoLivre(query):
     except Exception as e:
         print(f"Error in getProductMercadoLivre: {e}")
         raise HTTPException(status_code=400, detail=f'Não foi possível realizar a ação: {e}')
+    finally:
+        if web:
+            try:
+                web.quit()
+            except:
+                pass
